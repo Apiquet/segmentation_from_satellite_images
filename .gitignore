@@ -4,3 +4,5 @@
 .pylintrc
 
 pyproject.toml
+
+*__pycache__*
