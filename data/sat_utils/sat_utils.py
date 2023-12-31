@@ -56,13 +56,3 @@ def merge_and_reproject_features_labels(features_to_merge: list[Path], merged_fe
     with rasterio.open(merged_feature_path, "w", **feature_meta) as dst:
         dst.write(np.concatenate(features))
         dst.descriptions = tuple(features_names)
-
-
-def rm_tree(pth: Path) -> None:
-    """Rm given directory."""
-    for child in pth.glob("*"):
-        if child.is_file():
-            child.unlink()
-        else:
-            rm_tree(child)
-    pth.rmdir()

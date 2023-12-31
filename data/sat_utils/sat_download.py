@@ -11,7 +11,7 @@ from geopandas import GeoSeries
 from shapely.geometry import box
 from tqdm import tqdm
 
-from data.sat_utils.sat_utils import merge_and_reproject_features_labels, rm_tree
+from data.sat_utils.sat_utils import merge_and_reproject_features_labels
 
 
 def download_s1_vh_vv_features(db_path: Path, gee_project_name: str, unique_orbit_sens: bool = True, unique_orbit_number: bool = True) -> None:
@@ -110,7 +110,8 @@ def download_s1_vh_vv_features(db_path: Path, gee_project_name: str, unique_orbi
                 unusable_labels_path.mkdir(parents=True, exist_ok=True)
                 unusable_label_path = unusable_labels_path / label_path.name
                 move(label_path, unusable_label_path)
-                rm_tree(feature_folder)
+                for downloading_file in feature_path.parent.glob(f"{feature_path.stem}*"):
+                    downloading_file.unlink()
                 exit()
         list_of_images_collection = cloud_filtered_images_collection.toList(cloud_filtered_images_collection.size())
         s2_image = ee.Image(list_of_images_collection.get(0))
@@ -126,7 +127,8 @@ def download_s1_vh_vv_features(db_path: Path, gee_project_name: str, unique_orbi
             unusable_labels_path.mkdir(parents=True, exist_ok=True)
             unusable_label_path = unusable_labels_path / label_path.name
             move(label_path, unusable_label_path)
-            rm_tree(feature_folder)
+            for downloading_file in downloading_files:
+                downloading_file.unlink()
             continue
 
         merge_and_reproject_features_labels(features_to_merge=downloading_files, merged_feature_path=feature_path, label_crs=label_raster.crs, label_geo_series=geo_series)
