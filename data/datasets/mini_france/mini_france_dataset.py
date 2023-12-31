@@ -43,20 +43,20 @@ class MiniFranceDataset(AbstractDataset):
 
         self.data: dict[int, dict[str, Path]] = {}
 
-        preprocessed_label_paths = sorted((db_path / "preprocessed_labels").rglob("*.pt"))[:10]
-        label_paths = sorted((db_path / "labels").rglob("*.tif"))[:10]
+        preprocessed_label_paths = sorted((db_path / "preprocessed_labels").rglob("*.pt"))
+        label_paths = sorted((db_path / "labels").rglob("*.tif"))
 
         if (db_path / "labels").is_dir() and (len(preprocessed_label_paths) < len(label_paths) or len(label_paths) == 0):
-            feature_paths = sorted((db_path / "features").rglob("*.tif"))[:10]
-            label_paths = sorted((db_path / "labels").rglob("*.tif"))[:10]
+            feature_paths = sorted((db_path / "features").rglob("*.tif"))
+            label_paths = sorted((db_path / "labels").rglob("*.tif"))
 
             # get features
             if len(feature_paths) < len(label_paths) or len(label_paths) == 0:
                 if gee_project_name is None:
                     raise ValueError("gee_project_name should not be None if sat images have to be downloaded.")
                 download_s1_vh_vv_features(db_path=db_path, gee_project_name=gee_project_name)
-                feature_paths = sorted((db_path / "features").rglob("*.tif"))[:10]
-                label_paths = sorted((db_path / "labels").rglob("*.tif"))[:10]
+                feature_paths = sorted((db_path / "features").rglob("*.tif"))
+                label_paths = sorted((db_path / "labels").rglob("*.tif"))
 
             for sample_idx, (feature_path, label_path) in enumerate(zip(feature_paths, label_paths)):
                 if feature_path.stem != label_path.stem:
@@ -75,8 +75,8 @@ class MiniFranceDataset(AbstractDataset):
         self.features_preprocess = features_preprocess if isinstance(features_preprocess, list) else []
         self.labels_preprocess = labels_preprocess if isinstance(labels_preprocess, list) else []
 
-        feature_paths = sorted((db_path / "preprocessed_features").rglob("*.pt"))[:10]
-        label_paths = sorted((db_path / "preprocessed_labels").rglob("*.pt"))[:10]
+        feature_paths = sorted((db_path / "preprocessed_features").rglob("*.pt"))
+        label_paths = sorted((db_path / "preprocessed_labels").rglob("*.pt"))
 
         for sample_idx, (feature_path, label_path) in enumerate(zip(feature_paths, label_paths)):
             if feature_path.stem != label_path.stem:
