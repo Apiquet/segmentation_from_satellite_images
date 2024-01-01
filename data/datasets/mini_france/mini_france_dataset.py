@@ -1,4 +1,5 @@
 """MiniFrance dataset implementation."""
+import json
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -10,7 +11,6 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
 from data.datasets.datasets_utils import AbstractDataset
-from data.preprocessing.features_preprocessing import normalization_per_channel
 from data.sat_utils.sat_download import download_s1_vh_vv_features
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -67,8 +67,10 @@ class MiniFranceDataset(AbstractDataset):
             self.features_preprocess = [lambda x: resize(x, (min_height, min_width), order=0)]
             self.labels_preprocess = [lambda x: resize(x, (min_height, min_width), order=0)]
 
-            mean_values, std_values = self.get_mean_std_per_channel_feature()
-            self.features_preprocess.extend([lambda x: normalization_per_channel(x, mean_values=mean_values.cpu().numpy(), std_values=std_values.cpu().numpy())])
+            mean_std_per_band = self.get_mean_std_per_channel_feature()
+            (db_path / "preprocessed_features").mkdir(exist_ok=True, parents=True)
+            with open(db_path / "preprocessed_features" / "mean_std_per_band.json", "w") as json_file:
+                json.dump(mean_std_per_band, json_file, indent=4)
 
             self.save_features_labels_to_folders()
 
@@ -115,17 +117,28 @@ class MiniFranceDataset(AbstractDataset):
         """Get info about the data at specific index."""
         return {"feature_path": self.data[index]["feature_path"], "label_path": self.data[index]["label_path"]}
 
-    def get_mean_std_per_channel_feature(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def get_mean_std_per_channel_feature(self) -> tuple[dict[int, dict[str, float]]]:
         """Read all element and compute per channel mean and std.
 
         Returns:
-            tuple[torch.Tensor,torch.Tensor]: mean and std values per channel, format: (number of channels,)
+            tuple[dict[int, dict[str, float]]]: dict with the band indexes as keys and values are:
+                "mean" key with the mean value
+                "std" key with the std value
         """
-        features_list = []
+        features_bands = {}
         for data_idx in tqdm(range(len(self.data)), desc="Calculating mean and std values per channel"):
-            features_list.append(self[data_idx][0])
-        features_list = torch.stack(features_list)
-        return (torch.mean(features_list, axis=(0, 2, 3)), torch.std(features_list, axis=(0, 2, 3)))
+            features = self[data_idx][0]
+            if data_idx == 0:
+                for band_idx, feature_band in enumerate(features):
+                    features_bands[band_idx] = feature_band.unsqueeze(0)
+            else:
+                for band_idx, feature_band in enumerate(features):
+                    features_bands[band_idx] = torch.cat((features_bands[band_idx], feature_band.unsqueeze(0)), axis=0)
+
+        mean_std_per_band = {}
+        for band_idx, feature_band in features_bands.items():
+            mean_std_per_band[band_idx] = {"mean": torch.mean(feature_band).cpu().detach().item(), "std": torch.std(feature_band).cpu().detach().item()}
+        return mean_std_per_band
 
     def get_min_height_width_per_channel_feature(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Read all element to get the minimum width and height to resize the data.
