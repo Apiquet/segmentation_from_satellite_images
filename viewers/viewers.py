@@ -3,12 +3,13 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from matplotlib import colors
 from matplotlib.figure import Figure
 from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
-from data.datasets.mini_france.mini_france_utils import REMAP_LABELS_TO_RGB
+from data.datasets.mini_france.mini_france_utils import FEATURES_NAMES_TO_BAND_IDX
 
 warnings.filterwarnings("ignore")
 
@@ -16,18 +17,20 @@ warnings.filterwarnings("ignore")
 class MiniFranceSamplesViewer:
     """Viewer to see VH VH and labels data."""
 
-    def __init__(self, samples_count_to_visualize: int, dataset: Dataset, batch_size: int) -> None:
+    def __init__(self, samples_count_to_visualize: int, dataset: Dataset, batch_size: int, classes_to_rgb: dict[str, tuple[int, int, int]]) -> None:
         """Constructor for MiniFranceSamplesViewer.
 
         Args:
             samples_count_to_visualize (int): number of samples to visualize in the final figure
             dataset (Dataset): dataset to get data info at specific indexes
             batch_size (int): size of each batch
+            classes_to_rgb (dict[str, tuple[int, int, int]]): color and name to assign to each label indexe in order (first class to label==0, etc.)
         """
         self.samples_count_to_visualize = samples_count_to_visualize
         self.dataset = dataset
         self.current_batch_index = -1
         self.batch_size = batch_size
+        self.classes_to_rgb = classes_to_rgb
         self.samples_indexes_to_plot = np.random.choice(len(dataset), self.samples_count_to_visualize, replace=False)
         self.features = []
         self.labels = []
@@ -60,37 +63,50 @@ class MiniFranceSamplesViewer:
     def compute(self) -> Figure:
         """Compute viewer to get final figure."""
         # set figure
-        cols = ["Feature VH\n\n", "Feature VV\n\n", "Labels\n\n"]
+        cols = ["Feature RGB\n\n", "Feature VH\n\n", "Feature VV\n\n", "Label\n\n"]
         cols_count = len(cols)
         fig, axarr = plt.subplots(self.samples_count_to_visualize, cols_count, figsize=(10, 10 * (self.samples_count_to_visualize / cols_count)))
         if self.samples_count_to_visualize == 1:
             axarr = np.array([axarr])
         plt.suptitle(str(self), fontsize=20)
 
-        yticks_indexes = np.arange(len(REMAP_LABELS_TO_RGB))
-        yticks_labels = list(REMAP_LABELS_TO_RGB.keys())
-        yticks_colors = list(REMAP_LABELS_TO_RGB.values())
+        yticks_indexes = np.arange(len(self.classes_to_rgb))
+        yticks_labels = list(self.classes_to_rgb.keys())
+        yticks_colors = list(self.classes_to_rgb.values())
 
         # set column names
         for ax, col in zip(axarr[0], cols):
             ax.set_title(col, fontweight="bold", fontsize=14)
 
-        cmap = colors.ListedColormap(np.array(list(REMAP_LABELS_TO_RGB.values())) / 255)
+        cmap = colors.ListedColormap(np.array(list(self.classes_to_rgb.values())) / 255)
         for ax, data_info, feature, label in zip(axarr, self.data_info, self.features, self.labels):
             ax[0].set_title(data_info["feature_path"].stem, loc="left")
 
-            ax[0].imshow(feature[0], cmap="Greys")
+            # get RGB S2 representation as B4 B3 B2
+            rgb = feature[[FEATURES_NAMES_TO_BAND_IDX["B4"], FEATURES_NAMES_TO_BAND_IDX["B3"], FEATURES_NAMES_TO_BAND_IDX["B2"]]].permute(1, 2, 0)
+
+            # Rescale data in [0, 1] with a clip to [2%;98%] to enhance visualization
+            percentiles = torch.tensor([0.02, 0.98])
+            min_max_per_channel = torch.quantile(rgb.view(-1, 3), percentiles, dim=0)
+            rgb[:, :, 0] = (torch.clip(rgb[:, :, 0], min=min_max_per_channel[0][0], max=min_max_per_channel[1][0]) - min_max_per_channel[0][0]) / min_max_per_channel[1][0]
+            rgb[:, :, 1] = (torch.clip(rgb[:, :, 1], min=min_max_per_channel[0][1], max=min_max_per_channel[1][1]) - min_max_per_channel[0][1]) / min_max_per_channel[1][1]
+            rgb[:, :, 2] = (torch.clip(rgb[:, :, 2], min=min_max_per_channel[0][2], max=min_max_per_channel[1][2]) - min_max_per_channel[0][2]) / min_max_per_channel[1][2]
+
+            ax[0].imshow(rgb, vmin=0.0, vmax=1.0)
             ax[0].set_axis_off()
 
-            ax[1].imshow(feature[1], cmap="Greys")
+            ax[1].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VH"]], cmap="Greys")
             ax[1].set_axis_off()
 
-            ax[2].imshow(label.int(), cmap=cmap, extent=yticks_indexes)
-            ax[2].get_xaxis().set_visible(False)
-            ax[2].yaxis.set_label_position("right")
-            ax[2].yaxis.tick_right()
-            ax[2].set_yticklabels(yticks_labels)
+            ax[2].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VV"]], cmap="Greys")
+            ax[2].set_axis_off()
+
+            ax[3].imshow(label.int(), cmap=cmap, extent=yticks_indexes)
+            ax[3].get_xaxis().set_visible(False)
+            ax[3].yaxis.set_label_position("right")
+            ax[3].yaxis.tick_right()
+            ax[3].set_yticklabels(yticks_labels)
             for y_idx, y_color in zip(yticks_indexes, yticks_colors):
-                plt.setp(ax[2].get_yticklabels()[y_idx], color=np.array(y_color) / 255)
+                plt.setp(ax[3].get_yticklabels()[y_idx], color=np.array(y_color) / 255)
         fig.tight_layout(pad=2)
         return fig
