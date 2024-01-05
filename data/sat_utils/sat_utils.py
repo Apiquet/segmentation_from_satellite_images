@@ -42,7 +42,6 @@ def merge_and_reproject_features_labels(features_to_merge: list[Path], merged_fe
     # merge all features
     features = []
     features_names = []
-    bands_count = 0
     for feature_idx, feature_path in enumerate(features_to_merge):
         with rasterio.open(feature_path) as feature_raster:
             if feature_idx == 0:
@@ -50,7 +49,6 @@ def merge_and_reproject_features_labels(features_to_merge: list[Path], merged_fe
                 feature_meta = feature_raster.meta.copy()
             features_names.append(feature_path.stem)
             features.append(resize(feature_raster.read(), (1, height, width), order=0))
-            bands_count += feature_meta["count"]
             feature_path.unlink()
     feature_meta.update(count=len(features_to_merge))
     with rasterio.open(merged_feature_path, "w", **feature_meta) as dst:
