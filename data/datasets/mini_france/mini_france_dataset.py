@@ -1,5 +1,5 @@
 """MiniFrance dataset implementation."""
-import json
+
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -11,7 +11,7 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
 from data.datasets.datasets_utils import AbstractDataset
-from data.sat_utils.sat_download import download_s1_vh_vv_features
+from data.sat_utils.sat_download import download_s1_s2_features
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -22,21 +22,22 @@ class MiniFranceDataset(AbstractDataset):
     def __init__(
         self,
         db_path: Path,
-        train_ratio: float,
         gee_project_name: Optional[str] = None,
         keep_n_elements: Optional[int] = None,
         features_preprocess: Optional[list[Callable]] = None,
         labels_preprocess: Optional[list[Callable]] = None,
+        tensors_width_height: Optional[tuple[int, int]] = 256,
     ) -> None:
         """Init class for Mini France reader.
 
         Args:
             db_path (Path): path to the folder containing features and labels folder with tif files
-            train_ratio (float): ratio for the training set
             gee_project_name (Optional[str]): name of the google earth engine project
             keep_n_elements (Optional[int], optional): To specifiy to keep only N elements, useful for testing. None to disable. Defaults to None.
             features_preprocess (Optional[list[Callable]], optional): preprocessing to apply on features. Defaults to None.
             labels_preprocess (Optional[list[Callable]], optional): preprocessing to apply on labels. Defaults to None.
+            tensors_width_height (tuple[int,int], optional): width and height of the features and labels to store under self.rescaled_features/labels_path. Defaults to None.
+                If None, resize all features and labels to the minimum height or width among all features and labels
         """
         super().__init__()
         self.features_preprocess = []
@@ -45,18 +46,19 @@ class MiniFranceDataset(AbstractDataset):
 
         self.data: dict[int, dict[str, Path]] = {}
 
-        self.rescaled_features_path = db_path / f"preprocessed_features_{train_ratio=}"
-        self.rescaled_labels_path = db_path / f"preprocessed_labels_{train_ratio=}"
+        label_paths = sorted((db_path / "labels").rglob("*.tif"))
 
-        if not (self.rescaled_features_path / "mean_std_per_band.json").is_file():
+        self.rescaled_features_path = db_path / "rescaled_features_tensors"
+        self.rescaled_labels_path = db_path / "rescaled_labels_tensors"
+
+        if len(label_paths) != len(list(self.rescaled_labels_path.rglob("*.pt"))):
             feature_paths = sorted((db_path / "features").rglob("*.tif"))
-            label_paths = sorted((db_path / "labels").rglob("*.tif"))
 
             # get features
             if len(feature_paths) < len(label_paths):
                 if gee_project_name is None:
                     raise ValueError("gee_project_name should not be None if sat images have to be downloaded.")
-                download_s1_vh_vv_features(db_path=db_path, gee_project_name=gee_project_name)
+                download_s1_s2_features(db_path=db_path, gee_project_name=gee_project_name)
                 feature_paths = sorted((db_path / "features").rglob("*.tif"))
                 label_paths = sorted((db_path / "labels").rglob("*.tif"))
 
@@ -66,17 +68,20 @@ class MiniFranceDataset(AbstractDataset):
                     raise ValueError(f"{feature_path} does not match {label_path}.")
                 self.data[sample_idx] = {"feature_path": feature_path, "label_path": label_path}
 
-            # get min height and min width to rescale features/labels to same resolution
-            min_height, min_width = self.get_min_height_width_per_channel_feature()
-            if min_height % 2 != 0:
-                min_height -= 1
-            if min_width % 2 != 0:
-                min_width -= 1
-            self.features_preprocess = [lambda x: resize(x, (min_height, min_width), order=0)]
-            self.labels_preprocess = [lambda x: resize(x, (min_height, min_width), order=0)]
+            if tensors_width_height is None:
+                # get min height and min width to rescale features/labels to same resolution
+                min_height, min_width = self.get_min_height_width_per_channel_feature()
+                if min_height % 2 != 0:
+                    min_height -= 1
+                if min_width % 2 != 0:
+                    min_width -= 1
+                tensors_width_height = min(min_height, min_width)
 
-            # save rescaled raw features and labels and a json file into rescaled_features_path containing mean and std per band
-            self.save_features_labels_and_normalization_info_to_folders()
+            self.features_preprocess = [lambda x: resize(x, (tensors_width_height[0], tensors_width_height[1]), order=0)]
+            self.labels_preprocess = [lambda x: resize(x, (tensors_width_height[0], tensors_width_height[1]), order=0)]
+
+            # save rescaled raw features and labels under rescaled_features/labels_path
+            self.save_features_labels_tensors_to_folders()
 
         self.features_preprocess = features_preprocess if isinstance(features_preprocess, list) else []
         self.labels_preprocess = labels_preprocess if isinstance(labels_preprocess, list) else []
@@ -121,23 +126,18 @@ class MiniFranceDataset(AbstractDataset):
         """Get info about the data at specific index."""
         return {"feature_path": self.data[index]["feature_path"], "label_path": self.data[index]["label_path"]}
 
-    def get_mean_std_per_channel_from_features(self, features: torch.Tensor) -> tuple[dict[int, dict[str, float]]]:
+    def get_mean_std_per_channel_from_features(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Read all element and compute per channel mean and std.
 
-        Args:
-            features (torch.Tensor): features to compute mean and std from, shape: (N samples, C channels, W, H)
-
         Returns:
-            tuple[dict[int, dict[str, float]]]: dict with the band indexes as keys and values are:
-                "mean" key with the mean value
-                "std" key with the std value
+            tuple[torch.Tensor, torch.Tensor]: mean and std values, shape: (N samples,)
         """
-        mean_per_band = torch.mean(features, axis=(0, 2, 3))
-        std_per_band = torch.std(features, axis=(0, 2, 3))
-        mean_std_per_band = {}
-        for band_idx, (band_mean, band_std) in enumerate(zip(mean_per_band, std_per_band)):
-            mean_std_per_band[band_idx] = {"mean": band_mean.cpu().detach().item(), "std": band_std.cpu().detach().item()}
-        return mean_std_per_band
+        features = self[0][0].unsqueeze(0)
+        for data_idx in tqdm(range(1, len(self.data)), desc="Get values for per channel normalizations"):
+            features = torch.concat([features, self[data_idx][0].unsqueeze(0)])
+        mean, std = torch.mean(features, axis=(0, 2, 3)), torch.std(features, axis=(0, 2, 3))
+        del features
+        return mean, std
 
     def get_min_height_width_per_channel_feature(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Read all element to get the minimum width and height to resize the data.
@@ -152,36 +152,26 @@ class MiniFranceDataset(AbstractDataset):
             min_width = min(min_width, width)
         return min_height, min_width
 
-    def save_features_labels_and_normalization_info_to_folders(self) -> None:
+    def save_features_labels_tensors_to_folders(self) -> None:
         """Read all element to save tensors to self.rescaled_features_path and self.rescaled_labels_path folders."""
-        features_list = []
-
         for data_idx in tqdm(range(len(self)), desc="Save features and labels", total=len(self)):
             feature_path = self.get_data_info_at_index(data_idx)["feature_path"]
-            preprocessed_feature_folder = self.rescaled_features_path / feature_path.relative_to(self.db_path / "features").parent
-            preprocessed_feature_folder.mkdir(parents=True, exist_ok=True)
-            preprocessed_feature_path = preprocessed_feature_folder / f"{feature_path.stem}.pt"
+            feature_folder = self.rescaled_features_path / feature_path.relative_to(self.db_path / "features").parent
+            feature_folder.mkdir(parents=True, exist_ok=True)
+            feature_path = feature_folder / f"{feature_path.stem}.pt"
 
             label_path = self.get_data_info_at_index(data_idx)["label_path"]
-            preprocessed_label_folder = self.rescaled_labels_path / label_path.relative_to(self.db_path / "labels").parent
-            preprocessed_label_folder.mkdir(parents=True, exist_ok=True)
-            preprocessed_label_path = preprocessed_label_folder / f"{label_path.stem}.pt"
+            label_folder = self.rescaled_labels_path / label_path.relative_to(self.db_path / "labels").parent
+            label_folder.mkdir(parents=True, exist_ok=True)
+            label_path = label_folder / f"{label_path.stem}.pt"
 
             feature, label = self[data_idx]
 
-            features_list.append(feature)
+            if not feature_path.is_file():
+                torch.save(feature, feature_path)
 
-            if not preprocessed_feature_path.is_file():
-                torch.save(feature, preprocessed_feature_path)
-
-            if not preprocessed_label_path.is_file():
-                torch.save(label, preprocessed_label_path)
-
-        mean_std_per_band = self.get_mean_std_per_channel_from_features(features=torch.stack(features_list, dim=0))
-
-        # save normalization data to json file
-        with open(self.rescaled_features_path / "mean_std_per_band.json", "w") as json_file:
-            json.dump(mean_std_per_band, json_file, indent=4)
+            if not label_path.is_file():
+                torch.save(label, label_path)
 
     def orderly_take(self, indexes: list[int]) -> None:
         """Remove all elements not contained in 'indexes' and apply their order."""
