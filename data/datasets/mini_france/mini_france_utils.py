@@ -19,6 +19,25 @@ RAW_CLASS_NAME_TO_LABEL = {
     "Clouds and shadows": 15,
 }
 
+RAW_LABELS_TO_RGB = {
+    "No information": (0, 0, 0),
+    "Urban fabric": (154, 163, 171),
+    "Industrial, commercial, public, military, private and transport units": (207, 217, 227),
+    "Mine, dump and contruction sites": (214, 211, 163),
+    "Artificial non-agricultural vegetated areas": (157, 181, 130),
+    "Arable land (annual crops)": (161, 161, 53),
+    "Permanent crops": (201, 204, 20),
+    "Pastures": (119, 247, 149),
+    "Complex and mixed cultivation patterns": (222, 222, 106),
+    "Orchards at the fringe of urban classes": (174, 194, 45),
+    "Forests": (7, 138, 38),
+    "Herbaceous vegetation associations": (39, 184, 72),
+    "Open spaces with little or no vegetation": (105, 207, 128),
+    "Wetlands": (109, 179, 232),
+    "Water": (38, 151, 237),
+    "Clouds and shadows": (0, 0, 0),
+}
+
 REMAP_LABELS = {
     "No information": ["Clouds and shadows", "No information"],
     "Urban": ["Urban fabric", "Industrial, commercial, public, military, private and transport units", "Mine, dump and contruction sites"],
