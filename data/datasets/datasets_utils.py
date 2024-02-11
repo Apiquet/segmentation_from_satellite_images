@@ -14,7 +14,9 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class AbstractDataset(Dataset):
-    """Dataset to load MiniFrance data."""
+    """Abstract class for a custom Dataset, an example can be found under data/datasets/mini_france/mini_france_dataset.py."""
+
+    features_preprocess: list[Callable]
 
     @abstractmethod
     def orderly_take(self, indexes: list[int]) -> None:
@@ -25,6 +27,15 @@ class AbstractDataset(Dataset):
     def get_data_info_at_index(self, index: int) -> dict[str, Path]:
         """Get info about the data at specific index."""
         raise NotImplementedError("get_data_info_at_index not implemented.")
+
+    @abstractmethod
+    def get_mean_std_per_channel_from_features(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Read all element and compute per channel mean and std.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: mean and std values, shape: (N samples,)
+        """
+        raise NotImplementedError("get_mean_std_per_channel_from_features not implemented.")
 
 
 def get_orderly_filtered_dataset(dataset: AbstractDataset, indexes: list[int]) -> AbstractDataset:
