@@ -1,4 +1,5 @@
 """Classes to create visualizations."""
+
 import warnings
 
 import matplotlib.pyplot as plt
@@ -6,6 +7,7 @@ import numpy as np
 import torch
 from matplotlib import colors
 from matplotlib.figure import Figure
+from PIL import Image, ImageEnhance
 from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
@@ -85,14 +87,12 @@ class MiniFranceSamplesViewer:
             # get RGB S2 representation as B4 B3 B2
             rgb = feature[[FEATURES_NAMES_TO_BAND_IDX["B4"], FEATURES_NAMES_TO_BAND_IDX["B3"], FEATURES_NAMES_TO_BAND_IDX["B2"]]].permute(1, 2, 0)
 
-            # Rescale data in [0, 1] with a clip to [2%;98%] to enhance visualization
-            percentiles = torch.tensor([0.02, 0.98])
-            min_max_per_channel = torch.quantile(rgb.view(-1, 3), percentiles, dim=0)
-            rgb[:, :, 0] = (torch.clip(rgb[:, :, 0], min=min_max_per_channel[0][0], max=min_max_per_channel[1][0]) - min_max_per_channel[0][0]) / min_max_per_channel[1][0]
-            rgb[:, :, 1] = (torch.clip(rgb[:, :, 1], min=min_max_per_channel[0][1], max=min_max_per_channel[1][1]) - min_max_per_channel[0][1]) / min_max_per_channel[1][1]
-            rgb[:, :, 2] = (torch.clip(rgb[:, :, 2], min=min_max_per_channel[0][2], max=min_max_per_channel[1][2]) - min_max_per_channel[0][2]) / min_max_per_channel[1][2]
+            # Rescale rgb image to [0, 1]
+            rgb = (rgb - torch.min(rgb)) / (torch.max(rgb) - torch.min(rgb))
 
-            ax[0].imshow(rgb, vmin=0.0, vmax=1.0)
+            # increase brightness
+            img_enhancer = ImageEnhance.Brightness(Image.fromarray((rgb.detach().numpy() * 255.0).astype(np.uint8)))
+            ax[0].imshow(img_enhancer.enhance(2.5))
             ax[0].set_axis_off()
 
             ax[1].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VH"]], cmap="Greys")
