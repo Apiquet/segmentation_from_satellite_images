@@ -15,10 +15,10 @@ from data.sat_utils.sat_s2_utils import add_cld_shdw_mask, apply_cld_shdw_mask, 
 from data.sat_utils.sat_utils import merge_and_reproject_features_labels
 
 
-def download_s1_vh_vv_features(db_path: Path, gee_project_name: str, unique_orbit_sens: bool = True, unique_orbit_number: bool = True) -> None:
-    """Download multi-temporal VH and VV S1 data as a yearly averaged image.
+def download_s1_s2_features(db_path: Path, gee_project_name: str, unique_orbit_sens: bool = True, unique_orbit_number: bool = True) -> None:
+    """Download multi-temporal VH and VV S1 data as a yearly averaged image and S2 optical bands.
 
-    It will save one feature per label tif file, under the features folder, with 2 channels: S1 VH and VV.
+    It will save one feature per label tif file, under the features folder, with 14 channels: S2 bands and S1 VH and VV. See FEATURES_NAMES_TO_BAND_IDX from mini_france_utils.py.
 
     Args:
         db_path (Path): path to the database containing labels folder
