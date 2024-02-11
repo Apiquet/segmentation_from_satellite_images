@@ -6,9 +6,15 @@
 
 ## Description
 
-Repository that implements a training using satellite images from Google Earth Engine.
+Repository that implements a Deep Learning training using satellite images.
 
-The following article explains the project []().
+The following [article](https://apiquet.com/2023/12/15/land-cover-with-deep-learning-using-satellite-images_1_4/) explains:
+
+* the MiniFrance land cover dataset,
+* details about satellite data (TIF files, EPSG projections, etc.),
+* how to visualize satellite data on Google Maps through the QGIS software,
+* a description of the two satellites used Sentinel 1 and Sentinel 2,
+* how to get satellite images using Google Earth Engine.
 
 ## How to use the code
 
