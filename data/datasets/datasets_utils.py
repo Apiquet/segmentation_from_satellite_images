@@ -1,12 +1,13 @@
 """MiniFrance dataset implementation."""
+
 import copy
 from abc import abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import random_split
 from torch.utils.data.dataset import Dataset
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -33,18 +34,12 @@ def get_orderly_filtered_dataset(dataset: AbstractDataset, indexes: list[int]) -
     return filtered_dataset
 
 
-def get_train_val_splits(
-    dataset: Dataset,
-    train_ratio: float,
-    batch_size: int = 1,
-    seed: Optional[int] = 42,
-) -> tuple[DataLoader, DataLoader, Dataset, Dataset]:
+def get_train_val_splits(dataset: AbstractDataset, train_ratio: float, seed: Optional[int] = 42) -> tuple[AbstractDataset, AbstractDataset]:
     """Get a training and a valid dataloaders from a given dataset.
 
     Args:
         dataset: Tensorflow dataset.
         train_ratio (float): ratio of the train set (train set = train_ratio*dataset)
-        batch_size: Number of entities for the dataloader batch. Defaults to 1.
         seed: seed value to get a reproducible random number. Can be set to None to disable.
 
     Raises:
@@ -65,7 +60,5 @@ def get_train_val_splits(
     train_subset, valid_subset = random_split(dataset, [train_ratio, round(1.0 - train_ratio, 2)], generator=generator)
     train_ds = get_orderly_filtered_dataset(dataset, train_subset.indices)
     valid_ds = get_orderly_filtered_dataset(dataset, valid_subset.indices)
-    train_dataloader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
-    valid_dataloader = DataLoader(valid_ds, batch_size=batch_size, shuffle=False)
 
-    return train_dataloader, valid_dataloader, train_ds, valid_ds
+    return train_ds, valid_ds
