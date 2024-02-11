@@ -1,6 +1,7 @@
-"""Functions to download satellite images."""
+"""Functions to download satellite images.
 
-
+Functions from https://developers.google.com/earth-engine/tutorials/community/sentinel-2-s2cloudless.
+"""
 import ee
 
 CLOUD_FILTER = 60
