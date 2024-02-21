@@ -1,0 +1,12 @@
+earthengine-api
+geemap
+geopandas
+matplotlib
+pathlib
+rasterio
+scikit-image
+shapely
+torch
+torchmetrics
+torchvision
+tqdm
