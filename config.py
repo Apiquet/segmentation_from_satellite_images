@@ -71,5 +71,5 @@ class Config:
         self.val_dl = DataLoader(self.val_ds, batch_size=self.batch_size, shuffle=False)
 
         # Metrics
-        self.metrics: list[Metric] = [MulticlassAccuracy(self.number_of_classes)]
+        self.metrics: list[Metric] = [MulticlassAccuracy(self.number_of_classes).to(device("cuda" if cuda.is_available() else "cpu"))]
         self.viewers: list[Callable] = [MiniFranceSamplesViewer(samples_count_to_visualize=5, dataset=self.val_ds, batch_size=self.batch_size, classes_to_rgb=REMAP_LABELS_TO_RGB)]

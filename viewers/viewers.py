@@ -91,17 +91,17 @@ class MiniFranceSamplesViewer:
             rgb = (rgb - torch.min(rgb)) / (torch.max(rgb) - torch.min(rgb))
 
             # increase brightness
-            img_enhancer = ImageEnhance.Brightness(Image.fromarray((rgb.detach().numpy() * 255.0).astype(np.uint8)))
+            img_enhancer = ImageEnhance.Brightness(Image.fromarray((rgb.detach().cpu().numpy() * 255.0).astype(np.uint8)))
             ax[0].imshow(img_enhancer.enhance(2.5))
             ax[0].set_axis_off()
 
-            ax[1].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VH"]], cmap="Greys")
+            ax[1].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VH"]].detach().cpu().numpy(), cmap="Greys")
             ax[1].set_axis_off()
 
-            ax[2].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VV"]], cmap="Greys")
+            ax[2].imshow(feature[FEATURES_NAMES_TO_BAND_IDX["VV"]].detach().cpu().numpy(), cmap="Greys")
             ax[2].set_axis_off()
 
-            ax[3].imshow(label.int(), cmap=cmap, extent=yticks_indexes)
+            ax[3].imshow(label.int().detach().cpu().numpy(), cmap=cmap, extent=yticks_indexes)
             ax[3].get_xaxis().set_visible(False)
             ax[3].yaxis.set_label_position("right")
             ax[3].yaxis.tick_right()
