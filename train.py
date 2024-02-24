@@ -83,7 +83,7 @@ def run_training(training_dir: Path, db_path: Config, gee_project_name: str) -> 
         gee_project_name (str): name of the gee project to use (if sat images to download)
     """
     start_time = datetime.now()
-    training_dir = args.training_dir / start_time.strftime("%Y-%m-%d_%H-%M-%S")
+    training_dir = training_dir / start_time.strftime("%Y-%m-%d_%H-%M-%S")
     config_dir = training_dir / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
     copy(Path(__file__).resolve().parent / "config.py", config_dir / "config.py")
