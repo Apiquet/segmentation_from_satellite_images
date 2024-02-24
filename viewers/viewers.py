@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 class MiniFranceSamplesViewer:
     """Viewer to see VH VH and labels data."""
 
-    def __init__(self, samples_count_to_visualize: int, dataset: Dataset, batch_size: int, classes_to_rgb: dict[str, tuple[int, int, int]], display_prediction: bool = False) -> None:
+    def __init__(self, samples_count_to_visualize: int, dataset: Dataset, batch_size: int, classes_to_rgb: dict[str, tuple[int, int, int]], display_prediction: bool = True) -> None:
         """Constructor for MiniFranceSamplesViewer.
 
         Args:
