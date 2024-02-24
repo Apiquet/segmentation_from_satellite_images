@@ -88,6 +88,16 @@ def run_training(training_dir: Path, db_path: Config, gee_project_name: str) -> 
     config_dir.mkdir(parents=True, exist_ok=True)
     copy(Path(__file__).resolve().parent / "config.py", config_dir / "config.py")
 
+    # create log file
+    logging.basicConfig(
+        filename=training_dir / f"{start_time.strftime('%Y-%m-%d_%H-%M-%S')}_train.log",
+        filemode="a",
+        format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+        datefmt="%Y/%m/%d %H:%M:%S",
+        level=logging.INFO,
+        force=True,
+    )
+
     training_config = Config(db_path=db_path, gee_project_name=gee_project_name)
 
     with torch.no_grad():
@@ -132,6 +142,7 @@ def run_training(training_dir: Path, db_path: Config, gee_project_name: str) -> 
 
         # save model if its val loss is the better
         if history[str(training_config.loss_func)]["val"][-1] < min(history[str(training_config.loss_func)]["val"][:-1]):
+            logging.info(f"Save model at epoch {epoch} with val loss= {history[str(training_config.loss_func)]['val'][-1]}")
             torch.save(training_config.model.state_dict(), training_dir / "best_model.pth")
             epochs_count_without_improvement = 0
         else:
