@@ -27,6 +27,7 @@ class Config:
         self.batch_size = 16
         self.epochs_count = 100
         self.loss_func = CrossEntropyLoss(ignore_index=0)
+        self.max_epochs_count_without_improvement = 5  # if the val loss does not improve for 20 epochs: stop training (could be done with an early stopping class with epsilon)
 
         # Dataset variables
         self.keep_n_elements = None

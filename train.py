@@ -105,6 +105,7 @@ def run_training(training_dir: Path, db_path: Config, gee_project_name: str) -> 
     torch.save(training_config.model.state_dict(), training_dir / "best_model.pth")
 
     # creating viz at each epoch takes time and increases storage requirements
+    epochs_count_without_improvement = 0
     for epoch in range(training_config.epochs_count):
         # train model
         train_metrics_results = train_on_epoch(
@@ -129,8 +130,15 @@ def run_training(training_dir: Path, db_path: Config, gee_project_name: str) -> 
         # update our training history
         fill_history_dict(history, train_metrics_results, val_metrics_results)
 
-        if history[str(training_config.loss_func)]["val"][-1] == min(history[str(training_config.loss_func)]["val"]):
+        # save model if its val loss is the better
+        if history[str(training_config.loss_func)]["val"][-1] < min(history[str(training_config.loss_func)]["val"][:-1]):
             torch.save(training_config.model.state_dict(), training_dir / "best_model.pth")
+            epochs_count_without_improvement = 0
+        else:
+            epochs_count_without_improvement += 1
+            if epochs_count_without_improvement > training_config.max_epochs_count_without_improvement:
+                logging.info(f"Max epochs count without improvement was reached at epoch {epoch}")
+                break
 
         for metric in training_config.metrics:
             metric.reset()
