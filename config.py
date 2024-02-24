@@ -35,7 +35,7 @@ class Config:
         self.db_path = db_path
         self.tensors_width_height = (256, 256)  # features and labels width and height
         self.features_preprocess = None
-        self.labels_preprocess = []
+        self.labels_preprocess = None
 
         # Model variables
         self.number_of_classes = len(RAW_LABELS_TO_RGB)
