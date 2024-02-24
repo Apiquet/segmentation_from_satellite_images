@@ -12,9 +12,8 @@ from torchmetrics.classification import MulticlassAccuracy
 
 from data.datasets.datasets_utils import get_train_val_splits
 from data.datasets.mini_france.mini_france_dataset import MiniFranceDataset
-from data.datasets.mini_france.mini_france_utils import REMAP_LABELS, REMAP_LABELS_TO_RGB
+from data.datasets.mini_france.mini_france_utils import RAW_LABELS_TO_RGB
 from data.preprocessing.features_preprocessing import normalization_per_channel
-from data.preprocessing.labels_preprocessing import remap_labels
 from models.unet import UNet
 from viewers.viewers import MiniFranceSamplesViewer
 
@@ -35,10 +34,10 @@ class Config:
         self.db_path = db_path
         self.tensors_width_height = (256, 256)  # features and labels width and height
         self.features_preprocess = None
-        self.labels_preprocess = [lambda x: remap_labels(x, remap_names=REMAP_LABELS)]
+        self.labels_preprocess = []
 
         # Model variables
-        self.number_of_classes = len(REMAP_LABELS)
+        self.number_of_classes = len(RAW_LABELS_TO_RGB)
         self.model = UNet(in_channels=14, n_classes=self.number_of_classes, padding=True)
         self.model.to(device("cuda" if cuda.is_available() else "cpu"))
 
@@ -72,4 +71,4 @@ class Config:
 
         # Metrics
         self.metrics: list[Metric] = [MulticlassAccuracy(self.number_of_classes).to(device("cuda" if cuda.is_available() else "cpu"))]
-        self.viewers: list[Callable] = [MiniFranceSamplesViewer(samples_count_to_visualize=5, dataset=self.val_ds, batch_size=self.batch_size, classes_to_rgb=REMAP_LABELS_TO_RGB)]
+        self.viewers: list[Callable] = [MiniFranceSamplesViewer(samples_count_to_visualize=5, dataset=self.val_ds, batch_size=self.batch_size, classes_to_rgb=RAW_LABELS_TO_RGB)]
